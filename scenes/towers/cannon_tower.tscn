@@ -1,0 +1,38 @@
+[gd_scene load_steps=3 format=3 uid="uid://c8tower003"]
+
+[ext_resource type="Script" path="res://scripts/tower.gd" id="1"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_range"]
+radius = 120.0
+
+[node name="Tower" type="Node2D"]
+script = ExtResource("1")
+damage = 20.0
+fire_rate = 0.6
+tower_range = 120.0
+cost = 40
+splash_radius = 80.0
+
+[node name="Sprite2D" type="Polygon2D" parent="."]
+color = Color(0.85, 0.5, 0.1, 1)
+polygon = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+
+[node name="Turret" type="Polygon2D" parent="Sprite2D"]
+color = Color(0.65, 0.35, 0.05, 1)
+polygon = PackedVector2Array(-4, -4, 16, -4, 16, 4, -4, 4)
+
+[node name="RangeArea" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 2
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="RangeArea"]
+shape = SubResource("CircleShape2D_range")
+
+[node name="FireTimer" type="Timer" parent="."]
+wait_time = 1.667
+autostart = false
+
+[connection signal="area_entered" from="RangeArea" to="." method="_on_range_area_area_entered"]
+[connection signal="area_exited" from="RangeArea" to="." method="_on_range_area_area_exited"]
+[connection signal="timeout" from="FireTimer" to="." method="_on_fire_timer_timeout"]

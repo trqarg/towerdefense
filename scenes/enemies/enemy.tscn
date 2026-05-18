@@ -1,0 +1,117 @@
+[gd_scene load_steps=3 format=3 uid="uid://c8enemy001"]
+
+[ext_resource type="Script" path="res://scripts/enemy.gd" id="1"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
+radius = 16.0
+
+[node name="Enemy" type="PathFollow2D"]
+rotates = false
+script = ExtResource("1")
+
+[node name="Body" type="Node2D" parent="."]
+
+; Legs (behind torso)
+[node name="LeftLeg" type="Polygon2D" parent="Body"]
+position = Vector2(-5, 6)
+color = Color(0.25, 0.38, 0.12, 1)
+polygon = PackedVector2Array(-3, 0, 3, 0, 3, 10, -3, 10)
+
+[node name="RightLeg" type="Polygon2D" parent="Body"]
+position = Vector2(5, 6)
+color = Color(0.25, 0.38, 0.12, 1)
+polygon = PackedVector2Array(-3, 0, 3, 0, 3, 10, -3, 10)
+
+; Left foot
+[node name="LeftFoot" type="Polygon2D" parent="Body/LeftLeg"]
+position = Vector2(0, 10)
+color = Color(0.2, 0.3, 0.1, 1)
+polygon = PackedVector2Array(-4, -1, 4, -1, 5, 3, -5, 3)
+
+; Right foot
+[node name="RightFoot" type="Polygon2D" parent="Body/RightLeg"]
+position = Vector2(0, 10)
+color = Color(0.2, 0.3, 0.1, 1)
+polygon = PackedVector2Array(-4, -1, 4, -1, 5, 3, -5, 3)
+
+; Torso
+[node name="Torso" type="Polygon2D" parent="Body"]
+color = Color(0.35, 0.52, 0.18, 1)
+polygon = PackedVector2Array(-10, -4, 10, -4, 9, 8, -9, 8)
+
+; Belt
+[node name="Belt" type="Polygon2D" parent="Body"]
+color = Color(0.4, 0.25, 0.1, 1)
+polygon = PackedVector2Array(-10, 4, 10, 4, 10, 7, -10, 7)
+
+; Left arm
+[node name="LeftArm" type="Polygon2D" parent="Body"]
+position = Vector2(-12, -1)
+color = Color(0.3, 0.45, 0.15, 1)
+polygon = PackedVector2Array(-3, -3, 3, -3, 3, 10, -3, 10)
+
+; Right arm
+[node name="RightArm" type="Polygon2D" parent="Body"]
+position = Vector2(12, -1)
+color = Color(0.3, 0.45, 0.15, 1)
+polygon = PackedVector2Array(-3, -3, 3, -3, 3, 10, -3, 10)
+
+; Head
+[node name="Head" type="Polygon2D" parent="Body"]
+position = Vector2(0, -12)
+color = Color(0.38, 0.55, 0.2, 1)
+polygon = PackedVector2Array(-8, -8, 8, -8, 9, 2, 7, 6, -7, 6, -9, 2)
+
+; Left ear
+[node name="LeftEar" type="Polygon2D" parent="Body/Head"]
+color = Color(0.32, 0.48, 0.16, 1)
+polygon = PackedVector2Array(-9, -4, -14, -1, -9, 1)
+
+; Right ear
+[node name="RightEar" type="Polygon2D" parent="Body/Head"]
+color = Color(0.32, 0.48, 0.16, 1)
+polygon = PackedVector2Array(9, -4, 14, -1, 9, 1)
+
+; Left eye
+[node name="LeftEye" type="Polygon2D" parent="Body/Head"]
+color = Color(0.85, 0.15, 0.1, 1)
+polygon = PackedVector2Array(-6, -4, -2, -4, -2, -1, -6, -1)
+
+; Right eye
+[node name="RightEye" type="Polygon2D" parent="Body/Head"]
+color = Color(0.85, 0.15, 0.1, 1)
+polygon = PackedVector2Array(2, -4, 6, -4, 6, -1, 2, -1)
+
+; Brow
+[node name="Brow" type="Polygon2D" parent="Body/Head"]
+color = Color(0.28, 0.42, 0.14, 1)
+polygon = PackedVector2Array(-7, -6, 7, -6, 7, -4, -7, -4)
+
+; Left tusk
+[node name="LeftTusk" type="Polygon2D" parent="Body/Head"]
+color = Color(0.9, 0.88, 0.75, 1)
+polygon = PackedVector2Array(-5, 3, -3, 3, -2, 8, -6, 8)
+
+; Right tusk
+[node name="RightTusk" type="Polygon2D" parent="Body/Head"]
+color = Color(0.9, 0.88, 0.75, 1)
+polygon = PackedVector2Array(3, 3, 5, 3, 6, 8, 2, 8)
+
+; Mouth
+[node name="Mouth" type="Polygon2D" parent="Body/Head"]
+color = Color(0.2, 0.1, 0.05, 1)
+polygon = PackedVector2Array(-4, 2, 4, 2, 3, 5, -3, 5)
+
+[node name="HitArea" type="Area2D" parent="."]
+collision_layer = 2
+collision_mask = 4
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HitArea"]
+shape = SubResource("CircleShape2D_hit")
+
+[node name="HealthBar" type="ProgressBar" parent="."]
+offset_left = -16.0
+offset_top = -28.0
+offset_right = 16.0
+offset_bottom = -22.0
+show_percentage = false
