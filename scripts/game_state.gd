@@ -3,11 +3,16 @@ extends Node
 var selected_level: int = 0
 var difficulty: int = 1  # 0=Easy, 1=Normal, 2=Hard
 var levels: Array = []
+var level_stars: Dictionary = {}  # {level_index: star_count}
 
 const DIFFICULTY_NAMES := ["Easy", "Normal", "Hard"]
 const DIFFICULTY_HEALTH_MULT := [0.7, 1.0, 1.5]
 const DIFFICULTY_SPEED_MULT := [0.8, 1.0, 1.2]
 const DIFFICULTY_GOLD_MULT := [1.5, 1.0, 0.7]
+
+func set_level_stars(level_index: int, stars: int) -> void:
+	if stars > level_stars.get(level_index, 0):
+		level_stars[level_index] = stars
 
 func _ready() -> void:
 	levels = [
