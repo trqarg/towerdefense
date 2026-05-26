@@ -6,90 +6,495 @@ signal tower_upgrade_pressed
 signal tower_sell_pressed
 signal ability_pressed(ability_name: String)
 
-@onready var gold_label: Label = $Panel/MarginContainer/HBoxContainer/GoldLabel
-@onready var lives_label: Label = $Panel/MarginContainer/HBoxContainer/LivesLabel
-@onready var wave_label: Label = $Panel/MarginContainer/HBoxContainer/WaveLabel
-@onready var next_wave_button: Button = $Panel/MarginContainer/HBoxContainer/NextWaveButton
-@onready var tower_buttons_container: HBoxContainer = $Panel/MarginContainer/HBoxContainer/TowerButtons
-@onready var options_button: Button = $Panel/MarginContainer/HBoxContainer/OptionsButton
-@onready var game_over_label: Label = $GameOverLabel
-@onready var options_panel: PanelContainer = $OptionsPanel
-@onready var banner: Label = $Banner
+# ── Theme colors ─────────────────────────────────
+const COL_WOOD_DARK := Color(0.14, 0.09, 0.05)
+const COL_WOOD := Color(0.22, 0.14, 0.07)
+const COL_WOOD_LIGHT := Color(0.32, 0.22, 0.12)
+const COL_GOLD := Color(0.85, 0.68, 0.18)
+const COL_GOLD_BRIGHT := Color(1.0, 0.88, 0.3)
+const COL_PARCHMENT := Color(0.95, 0.9, 0.72)
+const COL_RED := Color(0.75, 0.18, 0.12)
+const COL_RED_DARK := Color(0.5, 0.1, 0.06)
+const COL_GREEN := Color(0.18, 0.55, 0.12)
+const COL_GREEN_DARK := Color(0.12, 0.38, 0.08)
+const COL_BLUE := Color(0.15, 0.35, 0.7)
 
+# ── Tower data ───────────────────────────────────
 var tower_data: Dictionary = {
-	"basic": {"name": "Basic", "cost": 25, "color": Color(0.2, 0.4, 0.9)},
-	"sniper": {"name": "Sniper", "cost": 50, "color": Color(0.15, 0.6, 0.2)},
-	"cannon": {"name": "Cannon", "cost": 40, "color": Color(0.85, 0.5, 0.1)},
-	"frost": {"name": "Frost", "cost": 35, "color": Color(0.3, 0.75, 0.9)},
+	"basic": {"name": "Archer", "cost": 25, "color": Color(0.2, 0.4, 0.9), "icon": "bow"},
+	"sniper": {"name": "Marksman", "cost": 50, "color": Color(0.15, 0.6, 0.2), "icon": "crosshair"},
+	"cannon": {"name": "Artillery", "cost": 40, "color": Color(0.85, 0.5, 0.1), "icon": "bomb"},
+	"frost": {"name": "Mage", "cost": 35, "color": Color(0.3, 0.75, 0.9), "icon": "crystal"},
 }
+
+# ── Node references (built in code) ─────────────
+var gold_label: Label
+var lives_label: Label
+var wave_label: Label
+var next_wave_button: Button
+var tower_buttons_container: HBoxContainer
+var tower_buttons: Dictionary = {}  # key -> Button
+var options_panel: PanelContainer
+var game_over_label: Label
+var game_over_panel: PanelContainer
 
 # Speed control
 var current_speed: float = 1.0
-var speed_button: Button = null
+var speed_button: Button
 
-# Rain of Fire ability
+# Rain of Fire
 var rain_cooldown: float = 0.0
 const RAIN_COOLDOWN_MAX: float = 25.0
-var rain_button: Button = null
+var rain_button: Button
+var rain_cooldown_overlay: ColorRect
 
-# Tower selection menu
-var tower_menu: PanelContainer = null
+# Tower menu
+var tower_menu: PanelContainer
 var tower_menu_target: Node2D = null
-var upgrade_btn: Button = null
-var sell_btn: Button = null
-var info_label: Label = null
+var upgrade_btn: Button
+var sell_btn: Button
+var info_label: Label
+
+@onready var banner: Label = $Banner
 
 func _ready() -> void:
-	game_over_label.visible = false
-	options_panel.visible = false
-	next_wave_button.pressed.connect(func(): next_wave_pressed.emit())
-	options_button.pressed.connect(_on_options_pressed)
+	_build_top_bar()
+	_build_bottom_bar()
+	_build_options_panel()
+	_build_game_over_panel()
+	_build_tower_menu()
 
-	# Options panel buttons
-	$OptionsPanel/VBoxContainer/ResumeButton.pressed.connect(_on_resume_pressed)
-	$OptionsPanel/VBoxContainer/ExitToMenuButton.pressed.connect(_on_exit_to_menu_pressed)
+# ══════════════════════════════════════════════════
+# BUILDING THE UI
+# ══════════════════════════════════════════════════
 
-	# Fullscreen toggle
-	var fs_check: CheckButton = $OptionsPanel/VBoxContainer/FullscreenCheck
-	fs_check.button_pressed = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
-	fs_check.toggled.connect(_on_fullscreen_toggled)
+func _make_panel_style(bg: Color, border: Color, border_w: int = 2, radius: int = 0) -> StyleBoxFlat:
+	var s = StyleBoxFlat.new()
+	s.bg_color = bg
+	s.border_color = border
+	s.set_border_width_all(border_w)
+	s.set_corner_radius_all(radius)
+	return s
 
-	# Difficulty selector
-	var diff_option: OptionButton = $OptionsPanel/VBoxContainer/DifficultyContainer/DifficultyOption
-	for dname in GameState.DIFFICULTY_NAMES:
-		diff_option.add_item(dname)
-	diff_option.selected = GameState.difficulty
-	diff_option.item_selected.connect(_on_difficulty_changed)
+func _make_button_style(bg: Color, border: Color, radius: int = 6) -> StyleBoxFlat:
+	var s = StyleBoxFlat.new()
+	s.bg_color = bg
+	s.border_color = border
+	s.set_border_width_all(2)
+	s.set_corner_radius_all(radius)
+	s.set_content_margin_all(6)
+	return s
 
-	# Tower build buttons
+func _style_button(btn: Button, bg: Color, border: Color, font_color: Color = COL_PARCHMENT, radius: int = 6) -> void:
+	btn.add_theme_stylebox_override("normal", _make_button_style(bg, border, radius))
+	btn.add_theme_stylebox_override("hover", _make_button_style(bg.lightened(0.15), border.lightened(0.1), radius))
+	btn.add_theme_stylebox_override("pressed", _make_button_style(bg.darkened(0.15), border, radius))
+	var dis_style = _make_button_style(bg.darkened(0.3), Color(0.3, 0.3, 0.3), radius)
+	btn.add_theme_stylebox_override("disabled", dis_style)
+	btn.add_theme_color_override("font_color", font_color)
+	btn.add_theme_color_override("font_hover_color", font_color.lightened(0.15))
+	btn.add_theme_color_override("font_pressed_color", font_color.darkened(0.1))
+	btn.add_theme_color_override("font_disabled_color", Color(0.45, 0.4, 0.35))
+
+# ── Top Bar ──────────────────────────────────────
+
+func _build_top_bar() -> void:
+	var top_bar = PanelContainer.new()
+	top_bar.anchors_preset = Control.PRESET_TOP_WIDE
+	top_bar.offset_bottom = 52
+	var style = _make_panel_style(COL_WOOD_DARK, COL_GOLD, 0)
+	style.border_width_bottom = 3
+	style.border_color = COL_GOLD
+	style.set_content_margin_all(8)
+	top_bar.add_theme_stylebox_override("panel", style)
+	add_child(top_bar)
+
+	var hbox = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 24)
+	top_bar.add_child(hbox)
+
+	# Gold
+	var gold_box = _make_info_panel("gold")
+	gold_label = gold_box.get_meta("label")
+	hbox.add_child(gold_box)
+
+	# Lives
+	var lives_box = _make_info_panel("lives")
+	lives_label = lives_box.get_meta("label")
+	hbox.add_child(lives_box)
+
+	# Wave
+	var wave_box = _make_info_panel("wave")
+	wave_label = wave_box.get_meta("label")
+	hbox.add_child(wave_box)
+
+	# Spacer
+	var spacer = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(spacer)
+
+	# Speed toggle
+	speed_button = Button.new()
+	speed_button.text = " 1x "
+	speed_button.custom_minimum_size = Vector2(55, 34)
+	speed_button.add_theme_font_size_override("font_size", 18)
+	_style_button(speed_button, COL_WOOD, COL_GOLD)
+	speed_button.pressed.connect(_on_speed_toggle)
+	hbox.add_child(speed_button)
+
+	# Options
+	var opt_btn = Button.new()
+	opt_btn.text = " Options "
+	opt_btn.custom_minimum_size = Vector2(90, 34)
+	opt_btn.add_theme_font_size_override("font_size", 16)
+	_style_button(opt_btn, COL_WOOD, COL_GOLD)
+	opt_btn.pressed.connect(_on_options_pressed)
+	hbox.add_child(opt_btn)
+
+func _make_info_panel(info_type: String) -> HBoxContainer:
+	var hb = HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 6)
+
+	# Icon
+	var icon_label = Label.new()
+	icon_label.add_theme_font_size_override("font_size", 22)
+	match info_type:
+		"gold":
+			icon_label.text = "coin"
+			icon_label.add_theme_color_override("font_color", COL_GOLD_BRIGHT)
+		"lives":
+			icon_label.text = "heart"
+			icon_label.add_theme_color_override("font_color", COL_RED)
+		"wave":
+			icon_label.text = "flag"
+			icon_label.add_theme_color_override("font_color", COL_PARCHMENT)
+
+	# Use a small colored polygon as icon instead of text
+	var icon_container = PanelContainer.new()
+	icon_container.custom_minimum_size = Vector2(28, 28)
+	var icon_style = StyleBoxFlat.new()
+	icon_style.set_corner_radius_all(4)
+	icon_style.set_content_margin_all(0)
+	match info_type:
+		"gold":
+			icon_style.bg_color = Color(0.9, 0.72, 0.1)
+			icon_style.border_color = Color(0.7, 0.55, 0.05)
+		"lives":
+			icon_style.bg_color = Color(0.8, 0.15, 0.1)
+			icon_style.border_color = Color(0.6, 0.1, 0.05)
+		"wave":
+			icon_style.bg_color = Color(0.2, 0.45, 0.7)
+			icon_style.border_color = Color(0.15, 0.3, 0.55)
+	icon_style.set_border_width_all(2)
+	icon_container.add_theme_stylebox_override("panel", icon_style)
+	var icon_text = Label.new()
+	icon_text.add_theme_font_size_override("font_size", 16)
+	icon_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	icon_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	icon_text.add_theme_color_override("font_color", Color.WHITE)
+	match info_type:
+		"gold": icon_text.text = "$"
+		"lives": icon_text.text = "♥"
+		"wave": icon_text.text = "⚑"
+	icon_container.add_child(icon_text)
+	hb.add_child(icon_container)
+
+	# Value label
+	var lbl = Label.new()
+	lbl.add_theme_font_size_override("font_size", 22)
+	lbl.add_theme_color_override("font_color", COL_PARCHMENT)
+	lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.5))
+	lbl.add_theme_constant_override("shadow_offset_x", 1)
+	lbl.add_theme_constant_override("shadow_offset_y", 1)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hb.add_child(lbl)
+	hb.set_meta("label", lbl)
+	return hb
+
+# ── Bottom Bar ───────────────────────────────────
+
+func _build_bottom_bar() -> void:
+	var bottom_bar = PanelContainer.new()
+	bottom_bar.anchors_preset = Control.PRESET_BOTTOM_WIDE
+	bottom_bar.offset_top = -80
+	var style = _make_panel_style(COL_WOOD_DARK, COL_GOLD, 0)
+	style.border_width_top = 3
+	style.border_color = COL_GOLD
+	style.set_content_margin_all(10)
+	style.content_margin_top = 12
+	bottom_bar.add_theme_stylebox_override("panel", style)
+	add_child(bottom_bar)
+
+	var hbox = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 12)
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	bottom_bar.add_child(hbox)
+
+	# Tower buttons
+	tower_buttons_container = HBoxContainer.new()
+	tower_buttons_container.add_theme_constant_override("separation", 10)
+	hbox.add_child(tower_buttons_container)
+
 	for key in tower_data:
 		var data = tower_data[key]
-		var btn = Button.new()
-		btn.text = "%s (%dg)" % [data["name"], data["cost"]]
-		btn.custom_minimum_size = Vector2(120, 36)
-		btn.add_theme_font_size_override("font_size", 16)
-		var k = key
-		btn.pressed.connect(func(): build_tower_pressed.emit(k))
+		var btn = _make_tower_button(key, data)
 		tower_buttons_container.add_child(btn)
+		tower_buttons[key] = btn
 
-	# Speed toggle button
-	speed_button = Button.new()
-	speed_button.text = "1x"
-	speed_button.custom_minimum_size = Vector2(50, 36)
-	speed_button.add_theme_font_size_override("font_size", 16)
-	speed_button.pressed.connect(_on_speed_toggle)
-	$Panel/MarginContainer/HBoxContainer.add_child(speed_button)
+	# Separator
+	var sep = VSeparator.new()
+	sep.custom_minimum_size = Vector2(20, 0)
+	sep.add_theme_color_override("separator", COL_GOLD.darkened(0.3))
+	hbox.add_child(sep)
 
-	# Rain of Fire ability button
+	# Rain of Fire ability
 	rain_button = Button.new()
-	rain_button.text = "Rain of Fire"
-	rain_button.custom_minimum_size = Vector2(130, 36)
-	rain_button.add_theme_font_size_override("font_size", 16)
+	rain_button.custom_minimum_size = Vector2(60, 56)
+	rain_button.add_theme_font_size_override("font_size", 11)
+	rain_button.text = "FIRE"
+	_style_button(rain_button, COL_RED_DARK, Color(0.9, 0.4, 0.1), COL_PARCHMENT, 8)
+	rain_button.tooltip_text = "Rain of Fire — AoE damage ability"
 	rain_button.pressed.connect(func(): ability_pressed.emit("rain_of_fire"))
-	$Panel/MarginContainer/HBoxContainer.add_child(rain_button)
+	# Wrap in a VBox with label below
+	var fire_vbox = VBoxContainer.new()
+	fire_vbox.add_theme_constant_override("separation", 2)
+	fire_vbox.add_child(rain_button)
+	var fire_lbl = Label.new()
+	fire_lbl.text = "Ability"
+	fire_lbl.add_theme_font_size_override("font_size", 10)
+	fire_lbl.add_theme_color_override("font_color", COL_GOLD.darkened(0.2))
+	fire_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	fire_vbox.add_child(fire_lbl)
+	hbox.add_child(fire_vbox)
 
-	# Tower selection menu (hidden by default)
-	_build_tower_menu()
+	# Separator
+	var sep2 = VSeparator.new()
+	sep2.custom_minimum_size = Vector2(20, 0)
+	sep2.add_theme_color_override("separator", COL_GOLD.darkened(0.3))
+	hbox.add_child(sep2)
+
+	# Next Wave button
+	next_wave_button = Button.new()
+	next_wave_button.text = "  SEND WAVE  "
+	next_wave_button.custom_minimum_size = Vector2(160, 56)
+	next_wave_button.add_theme_font_size_override("font_size", 20)
+	_style_button(next_wave_button, COL_GREEN_DARK, COL_GREEN.lightened(0.2), COL_PARCHMENT, 8)
+	next_wave_button.pressed.connect(func(): next_wave_pressed.emit())
+	hbox.add_child(next_wave_button)
+
+func _make_tower_button(key: String, data: Dictionary) -> VBoxContainer:
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+
+	var btn = Button.new()
+	btn.custom_minimum_size = Vector2(60, 56)
+	btn.add_theme_font_size_override("font_size", 11)
+	_style_button(btn, COL_WOOD, data["color"].darkened(0.3), data["color"].lightened(0.3), 8)
+
+	# Icon text inside button
+	match key:
+		"basic": btn.text = "↑"
+		"sniper": btn.text = "◎"
+		"cannon": btn.text = "●"
+		"frost": btn.text = "❄"
+	btn.add_theme_font_size_override("font_size", 24)
+
+	var k = key
+	btn.pressed.connect(func(): build_tower_pressed.emit(k))
+	vbox.add_child(btn)
+
+	# Cost label
+	var cost_lbl = Label.new()
+	cost_lbl.text = "%dg" % data["cost"]
+	cost_lbl.add_theme_font_size_override("font_size", 12)
+	cost_lbl.add_theme_color_override("font_color", COL_GOLD)
+	cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(cost_lbl)
+
+	return vbox
+
+# ── Options Panel ────────────────────────────────
+
+func _build_options_panel() -> void:
+	options_panel = PanelContainer.new()
+	options_panel.visible = false
+	options_panel.process_mode = Node.PROCESS_MODE_ALWAYS
+	options_panel.anchors_preset = Control.PRESET_CENTER
+	options_panel.offset_left = -160
+	options_panel.offset_top = -140
+	options_panel.offset_right = 160
+	options_panel.offset_bottom = 140
+	options_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	options_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+	var style = _make_panel_style(COL_WOOD_DARK, COL_GOLD, 3, 10)
+	style.set_content_margin_all(20)
+	options_panel.add_theme_stylebox_override("panel", style)
+	add_child(options_panel)
+
+	# Dim overlay behind options
+	var overlay = ColorRect.new()
+	overlay.color = Color(0, 0, 0, 0.5)
+	overlay.anchors_preset = Control.PRESET_FULL_RECT
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.z_index = -1
+	options_panel.add_child(overlay)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 16)
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	options_panel.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "OPTIONS"
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", COL_GOLD_BRIGHT)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	# Fullscreen
+	var fs = CheckButton.new()
+	fs.text = "Fullscreen"
+	fs.add_theme_font_size_override("font_size", 18)
+	fs.add_theme_color_override("font_color", COL_PARCHMENT)
+	fs.button_pressed = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+	fs.toggled.connect(_on_fullscreen_toggled)
+	vbox.add_child(fs)
+
+	# Difficulty
+	var diff_hbox = HBoxContainer.new()
+	diff_hbox.add_theme_constant_override("separation", 12)
+	var diff_lbl = Label.new()
+	diff_lbl.text = "Difficulty:"
+	diff_lbl.add_theme_font_size_override("font_size", 18)
+	diff_lbl.add_theme_color_override("font_color", COL_PARCHMENT)
+	diff_hbox.add_child(diff_lbl)
+	var diff_opt = OptionButton.new()
+	diff_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	diff_opt.add_theme_font_size_override("font_size", 16)
+	for dname in GameState.DIFFICULTY_NAMES:
+		diff_opt.add_item(dname)
+	diff_opt.selected = GameState.difficulty
+	diff_opt.item_selected.connect(_on_difficulty_changed)
+	diff_hbox.add_child(diff_opt)
+	vbox.add_child(diff_hbox)
+
+	# Resume
+	var resume = Button.new()
+	resume.text = "Resume"
+	resume.custom_minimum_size = Vector2(0, 42)
+	resume.add_theme_font_size_override("font_size", 20)
+	_style_button(resume, COL_GREEN_DARK, COL_GREEN.lightened(0.2))
+	resume.pressed.connect(_on_resume_pressed)
+	vbox.add_child(resume)
+
+	# Exit
+	var exit_btn = Button.new()
+	exit_btn.text = "Exit to Menu"
+	exit_btn.custom_minimum_size = Vector2(0, 42)
+	exit_btn.add_theme_font_size_override("font_size", 20)
+	_style_button(exit_btn, COL_RED_DARK, COL_RED)
+	exit_btn.pressed.connect(_on_exit_to_menu_pressed)
+	vbox.add_child(exit_btn)
+
+# ── Game Over Panel ──────────────────────────────
+
+func _build_game_over_panel() -> void:
+	# Background dim
+	game_over_panel = PanelContainer.new()
+	game_over_panel.visible = false
+	game_over_panel.anchors_preset = Control.PRESET_CENTER
+	game_over_panel.offset_left = -200
+	game_over_panel.offset_top = -120
+	game_over_panel.offset_right = 200
+	game_over_panel.offset_bottom = 120
+	game_over_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	game_over_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+	var style = _make_panel_style(COL_WOOD_DARK, COL_GOLD, 3, 12)
+	style.set_content_margin_all(24)
+	game_over_panel.add_theme_stylebox_override("panel", style)
+	add_child(game_over_panel)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 14)
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	game_over_panel.add_child(vbox)
+
+	game_over_label = Label.new()
+	game_over_label.add_theme_font_size_override("font_size", 38)
+	game_over_label.add_theme_color_override("font_color", COL_GOLD_BRIGHT)
+	game_over_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+	game_over_label.add_theme_constant_override("shadow_offset_x", 2)
+	game_over_label.add_theme_constant_override("shadow_offset_y", 2)
+	game_over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(game_over_label)
+
+	# Stars label (will be updated on game over)
+	var stars_lbl = Label.new()
+	stars_lbl.name = "StarsLabel"
+	stars_lbl.add_theme_font_size_override("font_size", 42)
+	stars_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stars_lbl.add_theme_color_override("font_color", COL_GOLD_BRIGHT)
+	vbox.add_child(stars_lbl)
+
+	var menu_btn = Button.new()
+	menu_btn.text = "Back to Menu"
+	menu_btn.custom_minimum_size = Vector2(200, 48)
+	menu_btn.add_theme_font_size_override("font_size", 20)
+	_style_button(menu_btn, COL_WOOD, COL_GOLD)
+	menu_btn.pressed.connect(func():
+		Engine.time_scale = 1.0
+		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	)
+	vbox.add_child(menu_btn)
+
+# ── Tower Selection Menu ─────────────────────────
+
+func _build_tower_menu() -> void:
+	tower_menu = PanelContainer.new()
+	tower_menu.visible = false
+	tower_menu.custom_minimum_size = Vector2(200, 0)
+	tower_menu.z_index = 10
+
+	var style = _make_panel_style(Color(0.1, 0.07, 0.03, 0.95), COL_GOLD, 2, 10)
+	style.set_content_margin_all(12)
+	tower_menu.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	tower_menu.add_child(vbox)
+
+	info_label = Label.new()
+	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info_label.add_theme_font_size_override("font_size", 14)
+	info_label.add_theme_color_override("font_color", COL_PARCHMENT)
+	vbox.add_child(info_label)
+
+	# Separator line
+	var sep = HSeparator.new()
+	sep.add_theme_color_override("separator", COL_GOLD.darkened(0.3))
+	vbox.add_child(sep)
+
+	upgrade_btn = Button.new()
+	upgrade_btn.custom_minimum_size = Vector2(0, 36)
+	upgrade_btn.add_theme_font_size_override("font_size", 16)
+	_style_button(upgrade_btn, COL_GREEN_DARK, COL_GREEN.lightened(0.2))
+	upgrade_btn.pressed.connect(func(): tower_upgrade_pressed.emit())
+	vbox.add_child(upgrade_btn)
+
+	sell_btn = Button.new()
+	sell_btn.custom_minimum_size = Vector2(0, 36)
+	sell_btn.add_theme_font_size_override("font_size", 16)
+	_style_button(sell_btn, COL_RED_DARK, COL_RED)
+	sell_btn.pressed.connect(func(): tower_sell_pressed.emit())
+	vbox.add_child(sell_btn)
+
+	add_child(tower_menu)
+
+# ══════════════════════════════════════════════════
+# RUNTIME LOGIC
+# ══════════════════════════════════════════════════
 
 func _process(delta: float) -> void:
 	# Rain of Fire cooldown
@@ -97,59 +502,21 @@ func _process(delta: float) -> void:
 		rain_cooldown -= delta
 		if rain_cooldown <= 0.0:
 			rain_cooldown = 0.0
-			rain_button.text = "Rain of Fire"
+			rain_button.text = "FIRE"
 			rain_button.disabled = false
 		else:
-			rain_button.text = "Fire (%.0fs)" % rain_cooldown
+			rain_button.text = "%.0fs" % rain_cooldown
 			rain_button.disabled = true
 
-	# Keep tower menu positioned
-	if tower_menu and tower_menu.visible and tower_menu_target and is_instance_valid(tower_menu_target):
+	# Tower menu tracking
+	if tower_menu.visible and tower_menu_target and is_instance_valid(tower_menu_target):
 		var screen_pos = tower_menu_target.get_global_transform_with_canvas().origin
-		tower_menu.position = Vector2(screen_pos.x - tower_menu.size.x / 2, screen_pos.y - tower_menu.size.y - 30)
-		# Clamp to viewport
+		tower_menu.position = Vector2(screen_pos.x - tower_menu.size.x / 2, screen_pos.y - tower_menu.size.y - 35)
 		var vp = get_viewport().get_visible_rect().size
-		tower_menu.position.x = clampf(tower_menu.position.x, 0, vp.x - tower_menu.size.x)
-		tower_menu.position.y = clampf(tower_menu.position.y, 55, vp.y - tower_menu.size.y)
+		tower_menu.position.x = clampf(tower_menu.position.x, 4, vp.x - tower_menu.size.x - 4)
+		tower_menu.position.y = clampf(tower_menu.position.y, 56, vp.y - tower_menu.size.y - 84)
 
-func _build_tower_menu() -> void:
-	tower_menu = PanelContainer.new()
-	tower_menu.visible = false
-	tower_menu.custom_minimum_size = Vector2(180, 0)
-	tower_menu.z_index = 10
-
-	# Style the panel
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.15, 0.15, 0.2, 0.92)
-	style.border_color = Color(0.6, 0.55, 0.2)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(6)
-	style.set_content_margin_all(10)
-	tower_menu.add_theme_stylebox_override("panel", style)
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 6)
-	tower_menu.add_child(vbox)
-
-	info_label = Label.new()
-	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info_label.add_theme_font_size_override("font_size", 13)
-	info_label.add_theme_color_override("font_color", Color(0.9, 0.85, 0.6))
-	vbox.add_child(info_label)
-
-	upgrade_btn = Button.new()
-	upgrade_btn.custom_minimum_size = Vector2(0, 32)
-	upgrade_btn.add_theme_font_size_override("font_size", 15)
-	upgrade_btn.pressed.connect(func(): tower_upgrade_pressed.emit())
-	vbox.add_child(upgrade_btn)
-
-	sell_btn = Button.new()
-	sell_btn.custom_minimum_size = Vector2(0, 32)
-	sell_btn.add_theme_font_size_override("font_size", 15)
-	sell_btn.pressed.connect(func(): tower_sell_pressed.emit())
-	vbox.add_child(sell_btn)
-
-	add_child(tower_menu)
+# ── Tower Menu ───────────────────────────────────
 
 func show_tower_menu(tower: Node2D, player_gold: int) -> void:
 	tower_menu_target = tower
@@ -164,13 +531,11 @@ func _refresh_tower_menu(player_gold: int) -> void:
 	info_label.text = t.get_info_text()
 	if t.can_upgrade():
 		var ucost = t.get_upgrade_cost()
-		upgrade_btn.text = "Upgrade (%dg)" % ucost
+		upgrade_btn.text = "⬆ Upgrade (%dg)" % ucost
 		upgrade_btn.disabled = player_gold < ucost
-		upgrade_btn.visible = true
 	else:
-		upgrade_btn.text = "MAX LEVEL"
+		upgrade_btn.text = "★ MAX LEVEL"
 		upgrade_btn.disabled = true
-		upgrade_btn.visible = true
 	sell_btn.text = "Sell (+%dg)" % t.get_sell_value()
 
 func hide_tower_menu() -> void:
@@ -180,37 +545,41 @@ func hide_tower_menu() -> void:
 func start_rain_cooldown() -> void:
 	rain_cooldown = RAIN_COOLDOWN_MAX
 
-# ── Speed toggle ─────────────────────────────────
+# ── Speed ────────────────────────────────────────
 
 func _on_speed_toggle() -> void:
 	if current_speed == 1.0:
 		current_speed = 2.0
-		speed_button.text = "2x"
+		speed_button.text = " 2x "
 	else:
 		current_speed = 1.0
-		speed_button.text = "1x"
+		speed_button.text = " 1x "
 	Engine.time_scale = current_speed
 
-# ── Existing functions ───────────────────────────
+# ── Updates ──────────────────────────────────────
 
 func update_gold(amount: int) -> void:
-	gold_label.text = "Gold: %d" % amount
-	# Refresh tower menu if open
-	if tower_menu and tower_menu.visible:
+	gold_label.text = "%d" % amount
+	if tower_menu.visible:
 		_refresh_tower_menu(amount)
 
 func update_lives(amount: int) -> void:
-	lives_label.text = "Lives: %d" % amount
+	lives_label.text = "%d" % amount
 
 func update_wave(current: int, total: int) -> void:
-	wave_label.text = "Wave: %d/%d" % [current, total]
+	wave_label.text = "%d / %d" % [current, total]
 
 func set_next_wave_enabled(enabled: bool) -> void:
 	next_wave_button.disabled = not enabled
 
 func set_building_enabled(enabled: bool) -> void:
-	for btn in tower_buttons_container.get_children():
+	for key in tower_buttons:
+		# The button is inside a VBoxContainer, first child
+		var vbox = tower_buttons[key]
+		var btn = vbox.get_child(0) as Button
 		btn.disabled = not enabled
+
+# ── Options ──────────────────────────────────────
 
 func _on_options_pressed() -> void:
 	options_panel.visible = true
@@ -234,35 +603,30 @@ func _on_fullscreen_toggled(enabled: bool) -> void:
 func _on_difficulty_changed(index: int) -> void:
 	GameState.difficulty = index
 
+# ── Banner ───────────────────────────────────────
+
 func show_banner(msg: String) -> void:
 	banner.show_message(msg)
+
+# ── Game Over ────────────────────────────────────
 
 func show_game_over(won: bool, stars: int = 0) -> void:
 	Engine.time_scale = 1.0
 	hide_tower_menu()
 
 	if won:
-		var star_filled = "★".repeat(stars)
-		var star_empty = "☆".repeat(3 - stars)
-		game_over_label.text = "YOU WIN!\n%s%s" % [star_filled, star_empty]
+		game_over_label.text = "VICTORY!"
+		game_over_label.add_theme_color_override("font_color", COL_GOLD_BRIGHT)
+		var stars_lbl = game_over_panel.get_node("VBoxContainer/StarsLabel") as Label
+		stars_lbl.text = "★".repeat(stars) + "☆".repeat(3 - stars)
 	else:
-		game_over_label.text = "GAME OVER"
-	game_over_label.visible = true
-	next_wave_button.disabled = true
-	for btn in tower_buttons_container.get_children():
-		btn.disabled = true
-	if rain_button:
-		rain_button.disabled = true
-	if speed_button:
-		speed_button.disabled = true
+		game_over_label.text = "DEFEAT"
+		game_over_label.add_theme_color_override("font_color", COL_RED)
+		var stars_lbl = game_over_panel.get_node("VBoxContainer/StarsLabel") as Label
+		stars_lbl.text = ""
 
-	var menu_btn = Button.new()
-	menu_btn.text = "Back to Menu"
-	menu_btn.custom_minimum_size = Vector2(140, 40)
-	menu_btn.pressed.connect(func():
-		Engine.time_scale = 1.0
-		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
-	)
-	game_over_label.add_sibling(menu_btn)
-	menu_btn.anchors_preset = Control.PRESET_CENTER
-	menu_btn.position = Vector2(-70, 50)
+	game_over_panel.visible = true
+	next_wave_button.disabled = true
+	rain_button.disabled = true
+	speed_button.disabled = true
+	set_building_enabled(false)
