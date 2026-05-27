@@ -14,12 +14,68 @@ cost = 40
 splash_radius = 80.0
 
 [node name="Sprite2D" type="Polygon2D" parent="."]
-color = Color(0.85, 0.5, 0.1, 1)
-polygon = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+color = Color(0.42, 0.4, 0.38, 1)
+polygon = PackedVector2Array(-20, -12, -18, -14, 18, -14, 20, -12, 20, 12, 18, 16, -18, 16, -20, 12)
+
+[node name="StoneBase" type="Polygon2D" parent="Sprite2D"]
+color = Color(0.35, 0.33, 0.3, 1)
+polygon = PackedVector2Array(-22, 10, 22, 10, 24, 14, 24, 20, -24, 20, -24, 14)
+
+[node name="TopPlate" type="Polygon2D" parent="Sprite2D"]
+color = Color(0.48, 0.46, 0.42, 1)
+polygon = PackedVector2Array(-20, -16, 20, -16, 20, -14, -20, -14)
+
+[node name="IronBandUpper" type="Polygon2D" parent="Sprite2D"]
+color = Color(0.3, 0.3, 0.32, 1)
+polygon = PackedVector2Array(-20, -8, 20, -8, 20, -6, -20, -6)
+
+[node name="IronBandLower" type="Polygon2D" parent="Sprite2D"]
+color = Color(0.3, 0.3, 0.32, 1)
+polygon = PackedVector2Array(-20, 4, 20, 4, 20, 6, -20, 6)
+
+[node name="RivetTL" type="Polygon2D" parent="Sprite2D"]
+color = Color(0.55, 0.53, 0.5, 1)
+polygon = PackedVector2Array(-17, -12, -14, -12, -14, -9, -17, -9)
+
+[node name="RivetTR" type="Polygon2D" parent="Sprite2D"]
+color = Color(0.55, 0.53, 0.5, 1)
+polygon = PackedVector2Array(14, -12, 17, -12, 17, -9, 14, -9)
+
+[node name="RivetBL" type="Polygon2D" parent="Sprite2D"]
+color = Color(0.55, 0.53, 0.5, 1)
+polygon = PackedVector2Array(-17, 9, -14, 9, -14, 12, -17, 12)
+
+[node name="RivetBR" type="Polygon2D" parent="Sprite2D"]
+color = Color(0.55, 0.53, 0.5, 1)
+polygon = PackedVector2Array(14, 9, 17, 9, 17, 12, 14, 12)
+
+[node name="ViewportSlit" type="Polygon2D" parent="Sprite2D"]
+color = Color(0.15, 0.13, 0.1, 1)
+polygon = PackedVector2Array(-6, -4, 6, -4, 6, -1, -6, -1)
+
+[node name="CannonPort" type="Polygon2D" parent="Sprite2D"]
+color = Color(0.18, 0.16, 0.13, 1)
+polygon = PackedVector2Array(16, -5, 20, -5, 20, 5, 16, 5)
+
+[node name="MortarLine" type="Polygon2D" parent="Sprite2D"]
+color = Color(0.38, 0.35, 0.32, 1)
+polygon = PackedVector2Array(-19, 0, 15, 0, 15, 1, -19, 1)
 
 [node name="Turret" type="Polygon2D" parent="Sprite2D"]
-color = Color(0.65, 0.35, 0.05, 1)
-polygon = PackedVector2Array(-4, -4, 16, -4, 16, 4, -4, 4)
+color = Color(0.3, 0.28, 0.28, 1)
+polygon = PackedVector2Array(-2, -5, 20, -4, 22, -3, 22, 3, 20, 4, -2, 5)
+
+[node name="BarrelHighlight" type="Polygon2D" parent="Sprite2D/Turret"]
+color = Color(0.4, 0.38, 0.38, 1)
+polygon = PackedVector2Array(2, -4, 18, -3, 18, -1, 2, -2)
+
+[node name="MuzzleRing" type="Polygon2D" parent="Sprite2D/Turret"]
+color = Color(0.35, 0.33, 0.33, 1)
+polygon = PackedVector2Array(20, -5, 24, -5, 24, 5, 20, 5, 20, 3, 22, 3, 22, -3, 20, -3)
+
+[node name="CannonBore" type="Polygon2D" parent="Sprite2D/Turret"]
+color = Color(0.1, 0.08, 0.08, 1)
+polygon = PackedVector2Array(22, -2, 25, -2, 25, 2, 22, 2)
 
 [node name="RangeArea" type="Area2D" parent="."]
 collision_layer = 4

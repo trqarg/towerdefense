@@ -7,6 +7,9 @@ extends Node2D
 @export var splash_radius: float = 0.0
 @export var slow_amount: float = 0.0
 @export var slow_duration: float = 0.0
+@export var is_laser: bool = false
+@export var laser_ramp_rate: float = 0.5  # damage multiplier gained per second on same target
+@export var laser_max_mult: float = 4.0   # max damage multiplier
 
 var tower_key: String = "basic"
 var upgrade_level: int = 1
@@ -16,6 +19,14 @@ var base_damage: float
 var base_fire_rate: float
 var base_tower_range: float
 var base_splash_radius: float
+
+# Laser state
+var laser_time_on_target: float = 0.0
+var laser_current_mult: float = 1.0
+var laser_prev_target: Node2D = null
+var laser_beam: Line2D = null
+var laser_tick_timer: float = 0.0
+const LASER_TICK_INTERVAL: float = 0.15  # deal damage every 0.15s
 
 var enemies_in_range: Array[Node2D] = []
 var current_target: Node2D = null
@@ -27,6 +38,7 @@ const UPGRADE_DATA := {
 	"sniper": {"costs": [60, 100], "damage_mult": [1.0, 1.6, 2.5], "range_mult": [1.0, 1.15, 1.3], "rate_mult": [1.0, 1.15, 1.3]},
 	"cannon": {"costs": [50, 85],  "damage_mult": [1.0, 1.5, 2.0], "range_mult": [1.0, 1.1, 1.2], "rate_mult": [1.0, 1.2, 1.4], "splash_mult": [1.0, 1.2, 1.5]},
 	"frost":  {"costs": [40, 70],  "damage_mult": [1.0, 1.3, 1.8], "range_mult": [1.0, 1.15, 1.3], "rate_mult": [1.0, 1.3, 1.6]},
+	"laser": {"costs": [55, 95],  "damage_mult": [1.0, 1.4, 2.0], "range_mult": [1.0, 1.1, 1.2], "rate_mult": [1.0, 1.0, 1.0], "ramp_mult": [1.0, 1.3, 1.6]},
 }
 
 func _ready() -> void:
@@ -37,15 +49,20 @@ func _ready() -> void:
 	base_splash_radius = splash_radius
 	$RangeArea/CollisionShape2D.shape = CircleShape2D.new()
 	$RangeArea/CollisionShape2D.shape.radius = tower_range
-	$FireTimer.wait_time = 1.0 / fire_rate
-	$FireTimer.start()
+	if is_laser:
+		# Laser doesn't use FireTimer — it deals continuous damage in _process
+		$FireTimer.stop()
+		_setup_laser_beam()
+	else:
+		$FireTimer.wait_time = 1.0 / fire_rate
+		$FireTimer.start()
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	enemies_in_range = enemies_in_range.filter(func(e): return is_instance_valid(e))
 	current_target = _get_closest_enemy()
-	if current_target:
-		var angle = global_position.angle_to_point(current_target.global_position)
-		$Sprite2D.rotation = angle + PI
+
+	if is_laser:
+		_process_laser(delta)
 
 func _get_closest_enemy() -> Node2D:
 	var closest: Node2D = null
@@ -79,6 +96,7 @@ func _fire() -> void:
 	proj.splash_radius = splash_radius
 	proj.slow_amount = slow_amount
 	proj.slow_duration = slow_duration
+	proj.proj_type = tower_key
 	var proj_container = get_tree().current_scene.get_node("GameMap/Projectiles")
 	proj_container.add_child(proj)
 	proj.global_position = global_position
@@ -109,8 +127,11 @@ func _apply_upgrade_stats() -> void:
 	tower_range = base_tower_range * data["range_mult"][lvl_idx]
 	if data.has("splash_mult"):
 		splash_radius = base_splash_radius * data["splash_mult"][lvl_idx]
+	if data.has("ramp_mult"):
+		laser_ramp_rate = 0.5 * data["ramp_mult"][lvl_idx]
 	$RangeArea/CollisionShape2D.shape.radius = tower_range
-	$FireTimer.wait_time = 1.0 / fire_rate
+	if not is_laser:
+		$FireTimer.wait_time = 1.0 / fire_rate
 
 func _update_upgrade_visuals() -> void:
 	var scale_factor = 1.0 + (upgrade_level - 1) * 0.15
@@ -136,4 +157,61 @@ func get_info_text() -> String:
 	var level_text = "Lv.%d" % upgrade_level
 	var dmg_text = "DMG:%.0f" % damage
 	var rng_text = "RNG:%.0f" % tower_range
+	if is_laser:
+		return "%s %s | %s/s+ramp | %s" % [tower_key.capitalize(), level_text, dmg_text, rng_text]
 	return "%s %s | %s | %s" % [tower_key.capitalize(), level_text, dmg_text, rng_text]
+
+# ── Laser system ──────────────────────────────────────
+
+func _setup_laser_beam() -> void:
+	laser_beam = Line2D.new()
+	laser_beam.width = 2.0
+	laser_beam.default_color = Color(1.0, 0.2, 0.1, 0.8)
+	laser_beam.z_index = 5
+	# Beam is added to self so it moves with the tower
+	add_child(laser_beam)
+	laser_beam.visible = false
+
+func _process_laser(delta: float) -> void:
+	if not current_target or not is_instance_valid(current_target):
+		# No target — reset ramp and hide beam
+		laser_time_on_target = 0.0
+		laser_current_mult = 1.0
+		laser_prev_target = null
+		if laser_beam:
+			laser_beam.visible = false
+		return
+
+	# Check if target changed
+	if current_target != laser_prev_target:
+		laser_time_on_target = 0.0
+		laser_current_mult = 1.0
+		laser_prev_target = current_target
+
+	# Ramp up damage multiplier over time
+	laser_time_on_target += delta
+	laser_current_mult = minf(1.0 + laser_time_on_target * laser_ramp_rate, laser_max_mult)
+
+	# Update beam visual
+	if laser_beam:
+		laser_beam.visible = true
+		laser_beam.clear_points()
+		laser_beam.add_point(Vector2.ZERO)  # tower origin (local coords)
+		laser_beam.add_point(current_target.global_position - global_position)
+
+		# Beam gets wider and changes color as damage ramps
+		var ramp_t = (laser_current_mult - 1.0) / (laser_max_mult - 1.0)
+		laser_beam.width = lerpf(2.0, 5.0, ramp_t)
+		laser_beam.default_color = Color(
+			lerpf(1.0, 1.0, ramp_t),
+			lerpf(0.4, 0.1, ramp_t),
+			lerpf(0.1, 0.0, ramp_t),
+			lerpf(0.7, 0.95, ramp_t)
+		)
+
+	# Deal damage on tick interval
+	laser_tick_timer += delta
+	if laser_tick_timer >= LASER_TICK_INTERVAL:
+		laser_tick_timer -= LASER_TICK_INTERVAL
+		var tick_damage = damage * laser_current_mult * LASER_TICK_INTERVAL
+		current_target.take_damage(tick_damage)

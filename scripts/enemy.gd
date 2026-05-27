@@ -67,10 +67,17 @@ func _apply_type_visuals() -> void:
 	$Body/Head/RightEar.color = skin_dark
 	$Body/Head/Brow.color = skin_dark
 
+	# Color new detail nodes
+	$Body/Torso/ChestPlate.color = torso_color.darkened(0.15)
+	$Body/LeftArm/LeftHand.color = skin_color
+	$Body/RightArm/RightHand.color = skin_color
+	$Body/Head/Nose.color = skin_color.darkened(0.1)
+
 	match enemy_type:
 		"runner":
-			# Lean, smaller body
+			# Lean, smaller body, tilted forward for speed
 			body.scale = Vector2(0.8, 0.85)
+			body.rotation = deg_to_rad(-8.0)
 			$HealthBar.offset_top = -25.0
 			$HealthBar.offset_bottom = -19.0
 		"brute":
@@ -82,12 +89,16 @@ func _apply_type_visuals() -> void:
 			$HealthBar.offset_right = 20.0
 			# Shoulder armor
 			$Body/Belt.color = Color(0.5, 0.5, 0.5)
+			$Body/Torso/ChestPlate.color = Color(0.55, 0.55, 0.55)
 		"shaman":
 			# Normal size, glowing eyes
 			$Body/Head/LeftEye.color = Color(0.2, 0.9, 0.3)
 			$Body/Head/RightEye.color = Color(0.2, 0.9, 0.3)
 			# Staff color on right arm
 			right_arm.color = Color(0.45, 0.3, 0.15)
+			$Body/RightArm/RightHand.color = Color(0.5, 0.35, 0.18)
+			# Mystical chest marking
+			$Body/Torso/ChestPlate.color = Color(0.3, 0.15, 0.45)
 		"warlord":
 			# Large with red tint, armor
 			body.scale = Vector2(1.25, 1.25)
@@ -96,10 +107,13 @@ func _apply_type_visuals() -> void:
 			$HealthBar.offset_left = -20.0
 			$HealthBar.offset_right = 20.0
 			$Body/Belt.color = Color(0.6, 0.55, 0.1)
+			$Body/Belt/BeltBuckle.color = Color(0.85, 0.75, 0.15)
 			$Body/Head/LeftEye.color = Color(1.0, 0.8, 0.1)
 			$Body/Head/RightEye.color = Color(1.0, 0.8, 0.1)
 			$Body/Head/LeftTusk.color = Color(0.95, 0.9, 0.6)
 			$Body/Head/RightTusk.color = Color(0.95, 0.9, 0.6)
+			# Heavy armor chest plate
+			$Body/Torso/ChestPlate.color = Color(0.55, 0.45, 0.1)
 
 func _process(delta: float) -> void:
 	if slow_timer > 0.0:
@@ -162,6 +176,11 @@ func _set_orc_colors(slowed: bool) -> void:
 		$Body/Head/LeftEar.color = SLOW_TINT_DARK
 		$Body/Head/RightEar.color = SLOW_TINT_DARK
 		$Body/Head/Brow.color = SLOW_TINT_DARK
+		# Tint new detail nodes when slowed
+		$Body/Torso/ChestPlate.color = SLOW_TORSO.darkened(0.15)
+		$Body/LeftArm/LeftHand.color = SLOW_TINT
+		$Body/RightArm/RightHand.color = SLOW_TINT
+		$Body/Head/Nose.color = SLOW_TINT.darkened(0.1)
 	else:
 		# Restore base colors and re-apply type-specific overrides
 		_apply_type_visuals()

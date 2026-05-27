@@ -1,9 +1,28 @@
-[gd_scene load_steps=3 format=3 uid="uid://c8enemy001"]
+[gd_scene load_steps=5 format=3 uid="uid://c8enemy001"]
 
 [ext_resource type="Script" path="res://scripts/enemy.gd" id="1"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 radius = 16.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0.25, 0.15, 0.05, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.15, 0.08, 0.02, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fill"]
+bg_color = Color(0.2, 0.7, 0.15, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
 
 [node name="Enemy" type="PathFollow2D"]
 rotates = false
@@ -11,96 +30,124 @@ script = ExtResource("1")
 
 [node name="Body" type="Node2D" parent="."]
 
-; Legs (behind torso)
+; Left Leg - thicker, more muscular
 [node name="LeftLeg" type="Polygon2D" parent="Body"]
 position = Vector2(-5, 6)
 color = Color(0.25, 0.38, 0.12, 1)
-polygon = PackedVector2Array(-3, 0, 3, 0, 3, 10, -3, 10)
+polygon = PackedVector2Array(-4, 0, 4, 0, 5, 4, 5, 10, 3, 11, -3, 11, -5, 10, -5, 4)
 
-[node name="RightLeg" type="Polygon2D" parent="Body"]
-position = Vector2(5, 6)
-color = Color(0.25, 0.38, 0.12, 1)
-polygon = PackedVector2Array(-3, 0, 3, 0, 3, 10, -3, 10)
-
-; Left foot
+; Left Foot - boot shape
 [node name="LeftFoot" type="Polygon2D" parent="Body/LeftLeg"]
 position = Vector2(0, 10)
 color = Color(0.2, 0.3, 0.1, 1)
-polygon = PackedVector2Array(-4, -1, 4, -1, 5, 3, -5, 3)
+polygon = PackedVector2Array(-5, -2, 5, -2, 7, 0, 7, 3, 5, 5, -5, 5, -6, 3, -6, 0)
 
-; Right foot
+; Right Leg - thicker, more muscular
+[node name="RightLeg" type="Polygon2D" parent="Body"]
+position = Vector2(5, 6)
+color = Color(0.25, 0.38, 0.12, 1)
+polygon = PackedVector2Array(-4, 0, 4, 0, 5, 4, 5, 10, 3, 11, -3, 11, -5, 10, -5, 4)
+
+; Right Foot - boot shape
 [node name="RightFoot" type="Polygon2D" parent="Body/RightLeg"]
 position = Vector2(0, 10)
 color = Color(0.2, 0.3, 0.1, 1)
-polygon = PackedVector2Array(-4, -1, 4, -1, 5, 3, -5, 3)
+polygon = PackedVector2Array(-5, -2, 5, -2, 7, 0, 7, 3, 5, 5, -5, 5, -6, 3, -6, 0)
 
-; Torso
+; Torso - broader, barrel-shaped, more muscular
 [node name="Torso" type="Polygon2D" parent="Body"]
 color = Color(0.35, 0.52, 0.18, 1)
-polygon = PackedVector2Array(-10, -4, 10, -4, 9, 8, -9, 8)
+polygon = PackedVector2Array(-9, -6, -6, -8, 6, -8, 9, -6, 11, -2, 11, 4, 10, 8, 8, 9, -8, 9, -10, 8, -11, 4, -11, -2)
 
-; Belt
+; Chest plate armor detail
+[node name="ChestPlate" type="Polygon2D" parent="Body/Torso"]
+color = Color(0.45, 0.35, 0.2, 1)
+polygon = PackedVector2Array(-6, -3, 6, -3, 7, -1, 6, 1, -6, 1, -7, -1)
+
+; Belt - wider with shape
 [node name="Belt" type="Polygon2D" parent="Body"]
 color = Color(0.4, 0.25, 0.1, 1)
-polygon = PackedVector2Array(-10, 4, 10, 4, 10, 7, -10, 7)
+polygon = PackedVector2Array(-11, 4, 11, 4, 11, 8, 10, 9, -10, 9, -11, 8)
 
-; Left arm
+; Belt buckle detail
+[node name="BeltBuckle" type="Polygon2D" parent="Body/Belt"]
+color = Color(0.7, 0.6, 0.15, 1)
+polygon = PackedVector2Array(-2, 0, 2, 0, 2, 4, -2, 4)
+
+; Left Arm - thicker, muscular with taper
 [node name="LeftArm" type="Polygon2D" parent="Body"]
 position = Vector2(-12, -1)
 color = Color(0.3, 0.45, 0.15, 1)
-polygon = PackedVector2Array(-3, -3, 3, -3, 3, 10, -3, 10)
+polygon = PackedVector2Array(-4, -4, 4, -4, 5, -1, 4, 8, 3, 11, -2, 11, -3, 8, -4, -1)
 
-; Right arm
+; Left Hand - small fist
+[node name="LeftHand" type="Polygon2D" parent="Body/LeftArm"]
+position = Vector2(0, 11)
+color = Color(0.32, 0.48, 0.16, 1)
+polygon = PackedVector2Array(-3, -1, 3, -1, 4, 1, 3, 4, -3, 4, -4, 1)
+
+; Right Arm - thicker, muscular with taper
 [node name="RightArm" type="Polygon2D" parent="Body"]
 position = Vector2(12, -1)
 color = Color(0.3, 0.45, 0.15, 1)
-polygon = PackedVector2Array(-3, -3, 3, -3, 3, 10, -3, 10)
+polygon = PackedVector2Array(-4, -4, 4, -4, 5, -1, 4, 8, 3, 11, -2, 11, -3, 8, -4, -1)
 
-; Head
+; Right Hand - small fist
+[node name="RightHand" type="Polygon2D" parent="Body/RightArm"]
+position = Vector2(0, 11)
+color = Color(0.32, 0.48, 0.16, 1)
+polygon = PackedVector2Array(-3, -1, 3, -1, 4, 1, 3, 4, -3, 4, -4, 1)
+
+; Head - rounder, organic orc shape
 [node name="Head" type="Polygon2D" parent="Body"]
 position = Vector2(0, -12)
 color = Color(0.38, 0.55, 0.2, 1)
-polygon = PackedVector2Array(-8, -8, 8, -8, 9, 2, 7, 6, -7, 6, -9, 2)
+polygon = PackedVector2Array(-7, -9, -3, -11, 3, -11, 7, -9, 9, -5, 10, 0, 9, 4, 7, 7, 3, 8, -3, 8, -7, 7, -9, 4, -10, 0, -9, -5)
 
-; Left ear
+; Left Ear - larger, more pointed
 [node name="LeftEar" type="Polygon2D" parent="Body/Head"]
 color = Color(0.32, 0.48, 0.16, 1)
-polygon = PackedVector2Array(-9, -4, -14, -1, -9, 1)
+polygon = PackedVector2Array(-9, -5, -17, -3, -16, 0, -10, 1, -9, -1)
 
-; Right ear
+; Right Ear - larger, more pointed
 [node name="RightEar" type="Polygon2D" parent="Body/Head"]
 color = Color(0.32, 0.48, 0.16, 1)
-polygon = PackedVector2Array(9, -4, 14, -1, 9, 1)
+polygon = PackedVector2Array(9, -5, 17, -3, 16, 0, 10, 1, 9, -1)
 
-; Left eye
+; Left Eye - larger, angrier
 [node name="LeftEye" type="Polygon2D" parent="Body/Head"]
 color = Color(0.85, 0.15, 0.1, 1)
-polygon = PackedVector2Array(-6, -4, -2, -4, -2, -1, -6, -1)
+polygon = PackedVector2Array(-7, -5, -2, -5, -1, -3, -2, -1, -7, -1, -8, -3)
 
-; Right eye
+; Right Eye - larger, angrier
 [node name="RightEye" type="Polygon2D" parent="Body/Head"]
 color = Color(0.85, 0.15, 0.1, 1)
-polygon = PackedVector2Array(2, -4, 6, -4, 6, -1, 2, -1)
+polygon = PackedVector2Array(2, -5, 7, -5, 8, -3, 7, -1, 2, -1, 1, -3)
 
-; Brow
+; Brow - thicker, angled for angry look
 [node name="Brow" type="Polygon2D" parent="Body/Head"]
 color = Color(0.28, 0.42, 0.14, 1)
-polygon = PackedVector2Array(-7, -6, 7, -6, 7, -4, -7, -4)
+polygon = PackedVector2Array(-8, -8, -3, -6, 3, -6, 8, -8, 8, -5, 3, -4, -3, -4, -8, -5)
 
-; Left tusk
+; Nose - small triangular nose between eyes and mouth
+[node name="Nose" type="Polygon2D" parent="Body/Head"]
+color = Color(0.33, 0.5, 0.18, 1)
+polygon = PackedVector2Array(-2, -1, 2, -1, 1, 3, -1, 3)
+
+; Left Tusk - larger, more curved/prominent
 [node name="LeftTusk" type="Polygon2D" parent="Body/Head"]
 color = Color(0.9, 0.88, 0.75, 1)
-polygon = PackedVector2Array(-5, 3, -3, 3, -2, 8, -6, 8)
+polygon = PackedVector2Array(-6, 3, -3, 3, -2, 5, -3, 10, -5, 10, -7, 7)
 
-; Right tusk
+; Right Tusk - larger, more curved/prominent
 [node name="RightTusk" type="Polygon2D" parent="Body/Head"]
 color = Color(0.9, 0.88, 0.75, 1)
-polygon = PackedVector2Array(3, 3, 5, 3, 6, 8, 2, 8)
+polygon = PackedVector2Array(3, 3, 6, 3, 7, 7, 5, 10, 3, 10, 2, 5)
 
-; Mouth
+; Mouth - wider, more expressive
 [node name="Mouth" type="Polygon2D" parent="Body/Head"]
 color = Color(0.2, 0.1, 0.05, 1)
-polygon = PackedVector2Array(-4, 2, 4, 2, 3, 5, -3, 5)
+polygon = PackedVector2Array(-5, 3, 5, 3, 4, 6, 2, 7, -2, 7, -4, 6)
 
 [node name="HitArea" type="Area2D" parent="."]
 collision_layer = 2
@@ -115,3 +162,5 @@ offset_top = -28.0
 offset_right = 16.0
 offset_bottom = -22.0
 show_percentage = false
+theme_override_styles/background = SubResource("StyleBoxFlat_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_fill")
